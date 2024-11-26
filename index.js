@@ -13,7 +13,12 @@ const app = express();
 app.use(express.json());
 
 // Configuración de CORS
-app.use(cors());
+const corsOptions = {
+    origin: ['https://monraspgit.github.io', 'http://localhost:3000'], // Agrega todos los orígenes permitidos
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
+    credentials: true, // Si usas cookies o autenticación basada en sesiones
+};
+app.use(cors(corsOptions));
 
 // Conexión a la base de datos
 const db = mysql.createConnection({
@@ -31,6 +36,7 @@ db.connect((err) => {
     console.log('Conectado a la base de datos');
 });
 
+// Middleware para registrar solicitudes
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
@@ -42,21 +48,18 @@ const clients = new Set();
 
 wss.on('connection', (ws) => {
     console.log('Cliente conectado al WebSocket');
-  
+
+    clients.add(ws);
+
     ws.on('close', () => {
-      console.log('Cliente desconectado del WebSocket');
+        console.log('Cliente desconectado del WebSocket');
+        clients.delete(ws);
     });
-  
+
     ws.on('message', (message) => {
-      console.log('Mensaje recibido del cliente:', message);
+        console.log('Mensaje recibido del cliente:', message);
     });
-  
-    // Emitir nuevos productos cuando se insertan
-    db.on('new-product', (newProduct) => {
-      ws.send(JSON.stringify(newProduct));
-    });
-  });
-  
+});
 
 // Función para notificar a los clientes
 const notifyClients = (data) => {
@@ -67,6 +70,18 @@ const notifyClients = (data) => {
         }
     });
 };
+
+// Ejemplo de una ruta para probar CORS
+app.get('/api/test', (req, res) => {
+    res.json({ message: 'CORS configurado correctamente' });
+});
+
+// Configuración del servidor
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});
+
 
 // Endpoint de prueba
 app.post('/api/prueba', (req, res) => {
