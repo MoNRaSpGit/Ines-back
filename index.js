@@ -26,7 +26,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     if (req.method === 'OPTIONS') {
-        return res.status(204).end();
+        return res.status(204).end(); 
     }
     next();
 });
@@ -62,7 +62,7 @@ app.post('/api/prueba', (req, res) => {
     });
 });
 
-// Endpoint para guardar datos en la tabla purchases
+// Endpoint para guardar o actualizar datos en la tabla purchases
 app.post('/api/purchases', (req, res) => {
     const receivedData = req.body;
 
@@ -70,7 +70,7 @@ app.post('/api/purchases', (req, res) => {
         return res.status(400).json({ error: 'No se enviaron datos o el formato es incorrecto.' });
     }
 
-    const insertPromises = receivedData.map((data) => {
+    const upsertPromises = receivedData.map((data) => {
         const {
             purchase_number,
             product_name,
@@ -92,55 +92,98 @@ app.post('/api/purchases', (req, res) => {
             throw new Error('Faltan datos obligatorios en un registro.');
         }
 
-        const query = `
+        const checkQuery = `
+            SELECT * FROM purchases 
+            WHERE purchase_number = ? AND product_name = ?
+        `;
+        const updateQuery = `
+            UPDATE purchases 
+            SET quantity_requested = ?, 
+                quantity_delivered = ?, 
+                pending_delivery = ?, 
+                unit = ?, 
+                shipping_date = ?, 
+                arrival_date = ?
+            WHERE purchase_number = ? AND product_name = ?
+        `;
+        const insertQuery = `
             INSERT INTO purchases 
             (purchase_number, product_name, quantity_requested, quantity_delivered, pending_delivery, unit, shipping_date, arrival_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const values = [
-            purchase_number,
-            product_name,
-            quantity_requested,
-            quantity_delivered || 0,
-            pending_delivery || 0,
-            unit || null,
-            shipping_date,
-            arrival_date || null,
-        ];
 
         return new Promise((resolve, reject) => {
-            db.query(query, values, (err, result) => {
+            // Verificar si el producto ya existe
+            db.query(checkQuery, [purchase_number, product_name], (err, results) => {
                 if (err) {
-                    console.error('Error ejecutando el INSERT:', err);
-                    reject(err);
+                    console.error('Error verificando existencia:', err);
+                    return reject(err);
+                }
+
+                if (results.length > 0) {
+                    // Si ya existe, actualizar el registro
+                    db.query(
+                        updateQuery,
+                        [
+                            quantity_requested,
+                            quantity_delivered || 0,
+                            pending_delivery || 0,
+                            unit || null,
+                            shipping_date,
+                            arrival_date || null,
+                            purchase_number,
+                            product_name,
+                        ],
+                        (updateErr, updateResult) => {
+                            if (updateErr) {
+                                console.error('Error ejecutando el UPDATE:', updateErr);
+                                return reject(updateErr);
+                            }
+                            console.log('Datos actualizados exitosamente:', { purchase_number, product_name });
+                            resolve({ message: 'Actualizado', purchase_number, product_name });
+                        }
+                    );
                 } else {
-                    console.log('Datos insertados exitosamente:', { id: result.insertId });
-                    resolve({
-                        id: result.insertId,
-                        purchase_number,
-                        product_name,
-                        quantity_requested,
-                        quantity_delivered: quantity_delivered || 0,
-                        pending_delivery: pending_delivery || 0,
-                        unit: unit || null,
-                        shipping_date,
-                        arrival_date: arrival_date || null,
-                        created_at: new Date(), // Fecha actual para simular un campo creado
-                    });
+                    // Si no existe, insertar un nuevo registro
+                    db.query(
+                        insertQuery,
+                        [
+                            purchase_number,
+                            product_name,
+                            quantity_requested,
+                            quantity_delivered || 0,
+                            pending_delivery || 0,
+                            unit || null,
+                            shipping_date,
+                            arrival_date || null,
+                        ],
+                        (insertErr, insertResult) => {
+                            if (insertErr) {
+                                console.error('Error ejecutando el INSERT:', insertErr);
+                                return reject(insertErr);
+                            }
+                            console.log('Datos insertados exitosamente:', { id: insertResult.insertId });
+                            resolve({ message: 'Insertado', id: insertResult.insertId, purchase_number, product_name });
+                        }
+                    );
                 }
             });
         });
     });
 
-    Promise.all(insertPromises)
-        .then((insertedProducts) => {
-            res.status(201).json({ message: 'Todos los datos fueron insertados exitosamente.', insertedProducts });
+    Promise.all(upsertPromises)
+        .then((results) => {
+            res.status(200).json({
+                message: 'Operación completada exitosamente.',
+                results,
+            });
         })
         .catch((error) => {
             console.error('Error procesando los datos:', error.message);
             res.status(500).json({ error: 'Ocurrió un error al procesar los datos.' });
         });
 });
+
 
 
 
