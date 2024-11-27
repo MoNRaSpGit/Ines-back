@@ -1,10 +1,8 @@
-const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql');
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
-const WebSocket = require('ws');
 
 const SECRET_KEY = 'tu_clave_secreta';
 
@@ -43,36 +41,6 @@ app.use((req, res, next) => {
     next();
 });
 
-
-// Configurar WebSocket en el mismo servidor
-const wss = new WebSocket.Server({ noServer: true });
-
-wss.on('connection', (ws) => {
-    console.log('Cliente conectado al WebSocket');
-
-    ws.on('close', () => {
-        console.log('Cliente desconectado del WebSocket');
-    });
-
-    ws.on('message', (message) => {
-        console.log('Mensaje recibido del cliente:', message);
-    });
-});
-
-// Manejar solicitudes de actualización a WebSocket
-
-
-// Función para notificar a los clientes
-const notifyClients = (data) => {
-    const message = JSON.stringify(data);
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(message);
-        }
-    });
-};
-
-
 // Ejemplo de una ruta para probar CORS
 app.get('/api/test', (req, res) => {
     res.json({ message: 'CORS configurado correctamente' });
@@ -81,9 +49,11 @@ app.get('/api/test', (req, res) => {
 // Configuración del servidor
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
 
+// -------------------------------0 ----------------------
+// Aquí van los endpoints
 
 // Endpoint de prueba
 app.post('/api/prueba', (req, res) => {
@@ -397,20 +367,6 @@ app.put('/api/purchases/:id', (req, res) => {
             return res.status(404).json({ error: 'Registro no encontrado o cantidad inválida.' });
         }
         res.status(200).json({ message: 'Datos actualizados exitosamente', id });
-    });
-});
-
-
-
-// Integración con WebSocket
-
-const server = app.listen(process.env.PORT || 3001, () => {
-    console.log(`Servidor corriendo en el puerto ${process.env.PORT || 3001}`);
-});
-
-server.on('upgrade', (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
     });
 });
 
