@@ -70,7 +70,7 @@ app.post('/api/purchases', (req, res) => {
         return res.status(400).json({ error: 'No se enviaron datos o el formato es incorrecto.' });
     }
 
-    const insertPromises = receivedData.map((data) => {
+    const insertOrUpdatePromises = receivedData.map((data) => {
         const {
             purchase_number,
             product_name,
@@ -92,55 +92,116 @@ app.post('/api/purchases', (req, res) => {
             throw new Error('Faltan datos obligatorios en un registro.');
         }
 
-        const query = `
-            INSERT INTO purchases 
-            (purchase_number, product_name, quantity_requested, quantity_delivered, pending_delivery, unit, shipping_date, arrival_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        const values = [
-            purchase_number,
-            product_name,
-            quantity_requested,
-            quantity_delivered || 0,
-            pending_delivery || 0,
-            unit || null,
-            shipping_date,
-            arrival_date || null,
-        ];
-
         return new Promise((resolve, reject) => {
-            db.query(query, values, (err, result) => {
+            // Verificar si ya existe un registro con el mismo purchase_number y product_name
+            const checkQuery = `
+                SELECT id FROM purchases 
+                WHERE purchase_number = ? AND product_name = ?
+            `;
+            const checkValues = [purchase_number, product_name];
+
+            db.query(checkQuery, checkValues, (err, results) => {
                 if (err) {
-                    console.error('Error ejecutando el INSERT:', err);
-                    reject(err);
+                    console.error('Error ejecutando el SELECT:', err);
+                    return reject(err);
+                }
+
+                if (results.length > 0) {
+                    // Si existe, realizar un UPDATE
+                    const updateQuery = `
+                        UPDATE purchases 
+                        SET 
+                            quantity_requested = ?,
+                            quantity_delivered = ?,
+                            pending_delivery = ?,
+                            unit = ?,
+                            shipping_date = ?,
+                            arrival_date = ?
+                        WHERE 
+                            purchase_number = ? AND product_name = ?
+                    `;
+                    const updateValues = [
+                        quantity_requested,
+                        quantity_delivered || 0,
+                        pending_delivery || 0,
+                        unit || null,
+                        shipping_date,
+                        arrival_date || null,
+                        purchase_number,
+                        product_name,
+                    ];
+
+                    db.query(updateQuery, updateValues, (err, result) => {
+                        if (err) {
+                            console.error('Error ejecutando el UPDATE:', err);
+                            return reject(err);
+                        }
+                        console.log('Registro actualizado exitosamente:', { id: results[0].id });
+                        resolve({
+                            id: results[0].id,
+                            purchase_number,
+                            product_name,
+                            quantity_requested,
+                            quantity_delivered: quantity_delivered || 0,
+                            pending_delivery: pending_delivery || 0,
+                            unit: unit || null,
+                            shipping_date,
+                            arrival_date: arrival_date || null,
+                            updated_at: new Date(), // Fecha actual para simular un campo actualizado
+                        });
+                    });
                 } else {
-                    console.log('Datos insertados exitosamente:', { id: result.insertId });
-                    resolve({
-                        id: result.insertId,
+                    // Si no existe, realizar un INSERT
+                    const insertQuery = `
+                        INSERT INTO purchases 
+                        (purchase_number, product_name, quantity_requested, quantity_delivered, pending_delivery, unit, shipping_date, arrival_date)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    `;
+                    const insertValues = [
                         purchase_number,
                         product_name,
                         quantity_requested,
-                        quantity_delivered: quantity_delivered || 0,
-                        pending_delivery: pending_delivery || 0,
-                        unit: unit || null,
+                        quantity_delivered || 0,
+                        pending_delivery || 0,
+                        unit || null,
                         shipping_date,
-                        arrival_date: arrival_date || null,
-                        created_at: new Date(), // Fecha actual para simular un campo creado
+                        arrival_date || null,
+                    ];
+
+                    db.query(insertQuery, insertValues, (err, result) => {
+                        if (err) {
+                            console.error('Error ejecutando el INSERT:', err);
+                            return reject(err);
+                        }
+                        console.log('Datos insertados exitosamente:', { id: result.insertId });
+                        resolve({
+                            id: result.insertId,
+                            purchase_number,
+                            product_name,
+                            quantity_requested,
+                            quantity_delivered: quantity_delivered || 0,
+                            pending_delivery: pending_delivery || 0,
+                            unit: unit || null,
+                            shipping_date,
+                            arrival_date: arrival_date || null,
+                            created_at: new Date(), // Fecha actual para simular un campo creado
+                        });
                     });
                 }
             });
         });
     });
 
-    Promise.all(insertPromises)
-        .then((insertedProducts) => {
-            res.status(201).json({ message: 'Todos los datos fueron insertados exitosamente.', insertedProducts });
+    Promise.all(insertOrUpdatePromises)
+        .then((processedProducts) => {
+            res.status(201).json({ message: 'Todos los datos fueron procesados exitosamente.', processedProducts });
         })
         .catch((error) => {
             console.error('Error procesando los datos:', error.message);
             res.status(500).json({ error: 'Ocurrió un error al procesar los datos.' });
         });
 });
+
 
 
 
