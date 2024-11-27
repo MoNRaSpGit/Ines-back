@@ -130,8 +130,18 @@ app.post('/api/purchases', (req, res) => {
                 }
             });
         });
-    });   
+    });
+
+    Promise.all(insertPromises)
+        .then((insertedProducts) => {
+            res.status(201).json({ message: 'Todos los datos fueron insertados exitosamente.', insertedProducts });
+        })
+        .catch((error) => {
+            console.error('Error procesando los datos:', error.message);
+            res.status(500).json({ error: 'Ocurrió un error al procesar los datos.' });
+        });
 });
+
 
 
 // Endpoint para obtener todos los registros de la tabla purchases
