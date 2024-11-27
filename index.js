@@ -1,3 +1,4 @@
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql');
@@ -14,7 +15,7 @@ app.use(express.json());
 
 // Configuración de CORS
 const corsOptions = {
-    origin: ['https://monraspgit.github.io', 'http://localhost:3000'], // Agrega todos los orígenes permitidos
+    origin: ['https://monraspgit.github.io', 'https://ines-back-1.onrender.com'], // Orígenes permitidos
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
     credentials: true, // Si usas cookies o autenticación basada en sesiones
 };
@@ -42,18 +43,19 @@ app.use((req, res, next) => {
     next();
 });
 
-// Configuración de WebSocket
-const wss = new WebSocket.Server({ port: 3002 });
-const clients = new Set();
+// Crear un servidor HTTP/HTTPS para Express y WebSocket
+const server = app.listen(process.env.PORT || 3001, () => {
+    console.log(`Servidor corriendo en el puerto ${process.env.PORT || 3001}`);
+});
+
+// Configurar WebSocket en el mismo servidor
+const wss = new WebSocket.Server({ noServer: true });
 
 wss.on('connection', (ws) => {
     console.log('Cliente conectado al WebSocket');
 
-    clients.add(ws);
-
     ws.on('close', () => {
         console.log('Cliente desconectado del WebSocket');
-        clients.delete(ws);
     });
 
     ws.on('message', (message) => {
@@ -61,15 +63,23 @@ wss.on('connection', (ws) => {
     });
 });
 
+// Manejar solicitudes de actualización a WebSocket
+server.on('upgrade', (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+    });
+});
+
 // Función para notificar a los clientes
 const notifyClients = (data) => {
     const message = JSON.stringify(data);
-    clients.forEach((client) => {
+    wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(message);
         }
     });
 };
+
 
 // Ejemplo de una ruta para probar CORS
 app.get('/api/test', (req, res) => {
@@ -401,12 +411,4 @@ app.put('/api/purchases/:id', (req, res) => {
 
 
 // Integración con WebSocket
-const server = app.listen(3001, () => {
-    console.log('Servidor corriendo en http://localhost:3001');
-});
 
-server.on('upgrade', (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
-    });
-});
