@@ -13,7 +13,7 @@ app.use(express.json());
 
 // Configuración de CORS
 const corsOptions = {
-    origin: ['https://monraspgit.github.io', 'https://ines-back-1.onrender.com'], // Orígenes permitidos
+    origin: ['https://monraspgit.github.io', 'https://ines-back-1.onrender.com', 'http://localhost:3000'], // Agrega localhost
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
     credentials: true, // Si usas cookies o autenticación basada en sesiones
 };
