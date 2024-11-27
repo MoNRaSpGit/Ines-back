@@ -130,25 +130,7 @@ app.post('/api/purchases', (req, res) => {
                 }
             });
         });
-    });
-
-    Promise.all(insertPromises)
-        .then((insertedProducts) => {
-            // Emitir cada producto a través del WebSocket
-            insertedProducts.forEach((newProduct) => {
-                wss.clients.forEach((client) => {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify(newProduct));
-                    }
-                });
-            });
-
-            res.status(201).json({ message: 'Todos los datos fueron insertados exitosamente.', insertedProducts });
-        })
-        .catch((error) => {
-            console.error('Error procesando los datos:', error.message);
-            res.status(500).json({ error: 'Ocurrió un error al procesar los datos.' });
-        });
+    });   
 });
 
 
