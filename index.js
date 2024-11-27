@@ -1,3 +1,4 @@
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql');
@@ -13,7 +14,7 @@ app.use(express.json());
 
 // Configuración de CORS
 const corsOptions = {
-    origin: ['https://monraspgit.github.io', 'https://ines-back-1.onrender.com', 'http://localhost:3000'], // Agrega localhost
+    origin: ['https://monraspgit.github.io', 'https://ines-back-1.onrender.com'], // Orígenes permitidos
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
     credentials: true, // Si usas cookies o autenticación basada en sesiones
 };
@@ -55,7 +56,6 @@ app.listen(PORT, () => {
 // -------------------------------0 ----------------------
 // Aquí van los endpoints
 
-// Endpoint de prueba
 app.post('/api/prueba', (req, res) => {
     const receivedData = req.body;
 
@@ -369,4 +369,3 @@ app.put('/api/purchases/:id', (req, res) => {
         res.status(200).json({ message: 'Datos actualizados exitosamente', id });
     });
 });
-
