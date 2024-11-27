@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql');
+const { body, validationResult } = require('express-validator');
+const jwt = require('jsonwebtoken');
+
+const SECRET_KEY = 'tu_clave_secreta';
 
 const app = express();
 
@@ -10,17 +14,15 @@ app.use(express.json());
 // Configuración de CORS
 const corsOptions = {
     origin: ['https://monraspgit.github.io', 'https://ines-back-1.onrender.com', 'http://localhost:3000'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos permitidos
+    credentials: true, // Si necesitas enviar cookies o autenticación
 };
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Maneja solicitudes preflight
 
-// Manejo explícito de preflight requests
-app.options('*', cors(corsOptions));
-
-// Configura manualmente las cabeceras de CORS
+// Middleware adicional para cabeceras CORS
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*'); // Cambiar por corsOptions.origin si usas credentials
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     if (req.method === 'OPTIONS') {
@@ -43,16 +45,6 @@ db.connect((err) => {
         return;
     }
     console.log('Conectado a la base de datos');
-});
-
-// Rutas
-app.post('/api/test', (req, res) => {
-    res.json({ message: 'Test de CORS' });
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
 
 
@@ -371,4 +363,11 @@ app.put('/api/purchases/:id', (req, res) => {
         }
         res.status(200).json({ message: 'Datos actualizados exitosamente', id });
     });
+});
+
+
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
