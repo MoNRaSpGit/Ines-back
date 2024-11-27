@@ -43,10 +43,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// Crear un servidor HTTP/HTTPS para Express y WebSocket
-const server = app.listen(process.env.PORT || 3001, () => {
-    console.log(`Servidor corriendo en el puerto ${process.env.PORT || 3001}`);
-});
 
 // Configurar WebSocket en el mismo servidor
 const wss = new WebSocket.Server({ noServer: true });
@@ -64,11 +60,7 @@ wss.on('connection', (ws) => {
 });
 
 // Manejar solicitudes de actualización a WebSocket
-server.on('upgrade', (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
-    });
-});
+
 
 // Función para notificar a los clientes
 const notifyClients = (data) => {
@@ -105,7 +97,6 @@ app.post('/api/prueba', (req, res) => {
     });
 });
 
-// Endpoint para guardar datos en la tabla purchases
 app.post('/api/purchases', (req, res) => {
     const receivedData = req.body;
 
@@ -113,7 +104,7 @@ app.post('/api/purchases', (req, res) => {
         return res.status(400).json({ error: 'No se enviaron datos o el formato es incorrecto.' });
     }
 
-    const insertPromises = receivedData.map((data) => {
+    const upsertPromises = receivedData.map((data) => {
         const {
             purchase_number,
             product_name,
@@ -135,64 +126,98 @@ app.post('/api/purchases', (req, res) => {
             throw new Error('Faltan datos obligatorios en un registro.');
         }
 
-        const query = `
-            INSERT INTO purchases 
-            (purchase_number, product_name, quantity_requested, quantity_delivered, pending_delivery, unit, shipping_date, arrival_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        const values = [
-            purchase_number,
-            product_name,
-            quantity_requested,
-            quantity_delivered || 0,
-            pending_delivery || 0,
-            unit || null,
-            shipping_date,
-            arrival_date || null,
-        ];
-
         return new Promise((resolve, reject) => {
-            db.query(query, values, (err, result) => {
-                if (err) {
-                    console.error('Error ejecutando el INSERT:', err);
-                    reject(err);
+            // Verificar si ya existe el producto con ese número de compra
+            const selectQuery = `
+                SELECT * FROM purchases WHERE purchase_number = ? AND product_name = ?
+            `;
+            db.query(selectQuery, [purchase_number, product_name], (selectErr, results) => {
+                if (selectErr) {
+                    console.error('Error ejecutando el SELECT:', selectErr);
+                    return reject(selectErr);
+                }
+
+                if (results.length > 0) {
+                    // Si existe, actualiza el registro
+                    const updateQuery = `
+                        UPDATE purchases
+                        SET quantity_requested = ?, quantity_delivered = ?, pending_delivery = ?, unit = ?, shipping_date = ?, arrival_date = ?
+                        WHERE purchase_number = ? AND product_name = ?
+                    `;
+                    const updateValues = [
+                        quantity_requested,
+                        quantity_delivered || 0,
+                        pending_delivery || 0,
+                        unit || null,
+                        shipping_date,
+                        arrival_date || null,
+                        purchase_number,
+                        product_name,
+                    ];
+
+                    db.query(updateQuery, updateValues, (updateErr) => {
+                        if (updateErr) {
+                            console.error('Error ejecutando el UPDATE:', updateErr);
+                            return reject(updateErr);
+                        }
+                        console.log('Producto actualizado exitosamente');
+                        resolve({ purchase_number, product_name, updated: true });
+                    });
                 } else {
-                    console.log('Datos insertados exitosamente:', { id: result.insertId });
-                    resolve({
-                        id: result.insertId,
+                    // Si no existe, inserta un nuevo registro
+                    const insertQuery = `
+                        INSERT INTO purchases
+                        (purchase_number, product_name, quantity_requested, quantity_delivered, pending_delivery, unit, shipping_date, arrival_date)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    `;
+                    const insertValues = [
                         purchase_number,
                         product_name,
                         quantity_requested,
-                        quantity_delivered: quantity_delivered || 0,
-                        pending_delivery: pending_delivery || 0,
-                        unit: unit || null,
+                        quantity_delivered || 0,
+                        pending_delivery || 0,
+                        unit || null,
                         shipping_date,
-                        arrival_date: arrival_date || null,
-                        created_at: new Date(), // Fecha actual para simular un campo creado
+                        arrival_date || null,
+                    ];
+
+                    db.query(insertQuery, insertValues, (insertErr, result) => {
+                        if (insertErr) {
+                            console.error('Error ejecutando el INSERT:', insertErr);
+                            return reject(insertErr);
+                        }
+                        console.log('Producto insertado exitosamente:', { id: result.insertId });
+                        resolve({
+                            id: result.insertId,
+                            purchase_number,
+                            product_name,
+                            quantity_requested,
+                            quantity_delivered: quantity_delivered || 0,
+                            pending_delivery: pending_delivery || 0,
+                            unit: unit || null,
+                            shipping_date,
+                            arrival_date: arrival_date || null,
+                            created_at: new Date(),
+                        });
                     });
                 }
             });
         });
     });
 
-    Promise.all(insertPromises)
-        .then((insertedProducts) => {
-            // Emitir cada producto a través del WebSocket
-            insertedProducts.forEach((newProduct) => {
-                wss.clients.forEach((client) => {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify(newProduct));
-                    }
-                });
+    Promise.all(upsertPromises)
+        .then((results) => {
+            res.status(201).json({
+                message: 'Datos procesados exitosamente.',
+                results,
             });
-
-            res.status(201).json({ message: 'Todos los datos fueron insertados exitosamente.', insertedProducts });
         })
         .catch((error) => {
             console.error('Error procesando los datos:', error.message);
             res.status(500).json({ error: 'Ocurrió un error al procesar los datos.' });
         });
 });
+
 
 
 // Endpoint para obtener todos los registros de la tabla purchases
@@ -411,4 +436,14 @@ app.put('/api/purchases/:id', (req, res) => {
 
 
 // Integración con WebSocket
+
+const server = app.listen(process.env.PORT || 3001, () => {
+    console.log(`Servidor corriendo en el puerto ${process.env.PORT || 3001}`);
+});
+
+server.on('upgrade', (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+    });
+});
 
