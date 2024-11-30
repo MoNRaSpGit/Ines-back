@@ -441,6 +441,31 @@ app.post('/api/excel/save', (req, res) => {
     });
 });
 
+// Endpoint para filtrar productos por fecha en la tabla 'TablaExcel'
+app.get('/api/excel/filter-by-date', (req, res) => {
+    const { observation_date } = req.query;
+
+    // Verificar si se recibió la fecha de observación como parámetro
+    if (!observation_date) {
+        return res.status(400).json({ error: 'La fecha de observación es requerida para filtrar.' });
+    }
+
+    // Crear la consulta SQL para obtener los registros que coincidan con la fecha de observación
+    const query = 'SELECT * FROM TablaExcel WHERE observation_date = ?';
+    const queryParams = [observation_date];
+
+    db.query(query, queryParams, (err, results) => {
+        if (err) {
+            console.error('Error ejecutando la consulta de filtrado por fecha:', err);
+            return res.status(500).json({ error: 'Error al filtrar los datos por fecha.' });
+        }
+
+        // Devolver los resultados como una respuesta JSON
+        res.status(200).json(results);
+    });
+});
+
+
 
 
 
