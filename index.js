@@ -209,7 +209,7 @@ app.get('/api/purchases/filter', (req, res) => {
     const queryParams = [];
 
     if (shipping_date) {
-        query += ' AND shipping_date = ?';
+        query += ' AND DATE(shipping_date) = ?'; // Asegura que compares solo la parte de la fecha.
         queryParams.push(shipping_date);
     }
 
@@ -227,6 +227,7 @@ app.get('/api/purchases/filter', (req, res) => {
         res.status(200).json(results);
     });
 });
+
 
 // Edita purchase_number
 app.put('/api/products/:id', (req, res) => {
@@ -399,6 +400,49 @@ app.put('/api/purchases/:id', (req, res) => {
         res.status(200).json({ message: 'Datos actualizados exitosamente', id });
     });
 });
+
+
+app.post('/api/excel/save', (req, res) => {
+    const { classification, code, product_name, unit, quantity, observation_date, observation_place } = req.body;
+
+    // Verificar si el cuerpo de la solicitud tiene todos los campos requeridos
+    if (!classification || !code || !product_name || !unit || !quantity) {
+        console.error('Error: Falta uno o más campos requeridos en el cuerpo de la solicitud.');
+        return res.status(400).json({ error: 'Faltan datos requeridos. Verifica que todos los campos estén presentes.' });
+    }
+
+    // Imprimir los datos recibidos para verificar
+    console.log('Datos recibidos:', req.body);
+
+    // Crear la consulta SQL
+    const query = `
+        INSERT INTO TablaExcel (classification, code, product_name, unit, quantity, observation_date, observation_place) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const queryParams = [classification, code, product_name, unit, quantity, observation_date, observation_place];
+
+    // Ejecutar la consulta
+    db.query(query, queryParams, (err, results) => {
+        if (err) {
+            console.error('Error ejecutando la consulta SQL:', err);
+            return res.status(500).json({ error: 'Error al insertar los datos en la tabla TablaExcel.' });
+        }
+
+        // Verificar si el registro se insertó correctamente
+        if (results.affectedRows > 0) {
+            res.status(200).json({
+                message: 'Datos guardados exitosamente.',
+                id: results.insertId // Esto devuelve el ID del registro recién insertado
+            });
+        } else {
+            res.status(500).json({ error: 'No se pudo insertar el registro.' });
+        }
+    });
+});
+
+
+
 
 
 
