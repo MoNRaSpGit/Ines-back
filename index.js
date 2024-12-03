@@ -185,6 +185,54 @@ app.put('/api/compras/actualizar-numero', (req, res) => {
     });
 });
 
+// filtra por fecha
+
+app.get('/api/compras/filtrar-por-fecha', (req, res) => {
+    const { fecha_envio } = req.query;
+
+    if (!fecha_envio) {
+        return res.status(400).json({ error: 'La fecha de envío es obligatoria para filtrar.' });
+    }
+
+    const query = `SELECT * FROM compras WHERE fecha_envio = ?`;
+
+    pool.query(query, [fecha_envio], (err, results) => {
+        if (err) {
+            console.error('Error al filtrar compras por fecha:', err);
+            return res.status(500).json({ error: 'Error interno del servidor.' });
+        }
+
+        res.status(200).json(results);
+    });
+});
+
+
+// filtra por n compras
+app.get('/api/compras/filtrar-por-numero', (req, res) => {
+    console.log('Request recibida en /api/compras/filtrar-por-numero');
+    const { numero_compra } = req.query;
+  
+    if (!numero_compra) {
+      console.log('Número de compra no proporcionado');
+      return res.status(400).json({ error: 'El número de compra es obligatorio para filtrar.' });
+    }
+  
+    const query = 'SELECT * FROM compras WHERE numero_compra = ?';
+    pool.query(query, [numero_compra], (err, results) => {
+      if (err) {
+        console.error('Error al filtrar compras por número de compra:', err);
+        return res.status(500).json({ error: 'Error interno del servidor.' });
+      }
+  
+      console.log('Resultados encontrados:', results);
+      res.status(200).json(results);
+    });
+  });
+  
+
+
+
+
 
 
 
