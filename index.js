@@ -466,6 +466,31 @@ app.get('/api/excel/filter-by-date', (req, res) => {
 });
 
 
+//  NUEVOS END POINT 
+
+
+// Endpoint para guardar compras
+router.post('/api/compras', async (req, res) => {
+    const { registros } = req.body;
+  
+    try {
+      for (const registro of registros) {
+        const { nombre, unidad, totalComprado, pendiente, fechaEnvio, numeroCompra } = registro;
+        await db.query(
+          `INSERT INTO compras (nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [nombre, unidad, totalComprado, pendiente, fechaEnvio, numeroCompra]
+        );
+      }
+  
+      res.status(200).send('Registros guardados exitosamente.');
+    } catch (error) {
+      console.error('Error al guardar los registros:', error);
+      res.status(500).send('Hubo un error al guardar los registros.');
+    }
+  });
+
+
 
 
 
