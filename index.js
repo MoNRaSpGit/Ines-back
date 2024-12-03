@@ -470,25 +470,54 @@ app.get('/api/excel/filter-by-date', (req, res) => {
 
 
 // Endpoint para guardar compras
-router.post('/api/compras', async (req, res) => {
+app.post('/api/compras', (req, res) => {
     const { registros } = req.body;
-  
-    try {
-      for (const registro of registros) {
-        const { nombre, unidad, totalComprado, pendiente, fechaEnvio, numeroCompra } = registro;
-        await db.query(
-          `INSERT INTO compras (nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [nombre, unidad, totalComprado, pendiente, fechaEnvio, numeroCompra]
-        );
-      }
-  
-      res.status(200).send('Registros guardados exitosamente.');
-    } catch (error) {
-      console.error('Error al guardar los registros:', error);
-      res.status(500).send('Hubo un error al guardar los registros.');
+
+    if (!registros || !Array.isArray(registros)) {
+        return res.status(400).json({ error: 'El formato del cuerpo de la solicitud es inválido.' });
     }
-  });
+
+    // Construcción de la consulta para insertar múltiples registros
+    const query = `
+        INSERT INTO compras (nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    // Procesar cada registro
+    const promises = registros.map((registro) => {
+        const { nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra } = registro;
+
+        // Validar que los campos requeridos estén presentes
+        if (!nombre || !unidad || !cantidad_pedida || !pendiente || !fecha_envio) {
+            return Promise.reject(new Error('Faltan campos requeridos en uno o más registros.'));
+        }
+
+        return new Promise((resolve, reject) => {
+            db.query(
+                query,
+                [nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra],
+                (err, results) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(results);
+                    }
+                }
+            );
+        });
+    });
+
+    // Ejecutar todas las promesas
+    Promise.all(promises)
+        .then(() => {
+            res.status(200).json({ message: 'Registros guardados exitosamente.' });
+        })
+        .catch((err) => {
+            console.error('Error al guardar los registros:', err);
+            res.status(500).json({ error: 'Hubo un error al guardar los registros.' });
+        });
+});
+
 
 
 
