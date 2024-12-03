@@ -26,7 +26,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     if (req.method === 'OPTIONS') {
-        return res.status(204).end(); 
+        return res.status(204).end();
     }
     next();
 });
@@ -148,6 +148,46 @@ app.post('/api/compras', (req, res) => {
             res.status(500).json({ error: 'Hubo un error al guardar los registros.' });
         });
 });
+
+
+// obetener loas compras sin numero
+app.get('/api/compras/sin-numero', (req, res) => {
+    const query = `SELECT * FROM compras WHERE numero_compra IS NULL`;
+
+    pool.query(query, (err, results) => {
+        if (err) {
+            console.error('Error al obtener compras sin número de compra:', err);
+            return res.status(500).json({ error: 'Error al obtener compras sin número de compra.' });
+        }
+
+        res.status(200).json(results);
+    });
+});
+
+
+// actualizar el numero
+app.put('/api/compras/actualizar-numero', (req, res) => {
+    const { id, numero_compra } = req.body;
+
+    if (!id || !numero_compra) {
+        return res.status(400).json({ error: 'ID y número de compra son obligatorios.' });
+    }
+
+    const query = `UPDATE compras SET numero_compra = ? WHERE id = ?`;
+
+    pool.query(query, [numero_compra, id], (err, results) => {
+        if (err) {
+            console.error('Error al actualizar el número de compra:', err);
+            return res.status(500).json({ error: 'Error al actualizar el número de compra.' });
+        }
+
+        res.status(200).json({ message: 'Número de compra actualizado exitosamente.' });
+    });
+});
+
+
+
+
 
 
 // Manejo global de errores en conexiones
