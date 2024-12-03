@@ -211,26 +211,23 @@ app.get('/api/compras/filtrar-por-fecha', (req, res) => {
 app.get('/api/compras/filtrar-por-numero', (req, res) => {
     console.log('Request recibida en /api/compras/filtrar-por-numero');
     const { numero_compra } = req.query;
-  
+
     if (!numero_compra) {
-      console.log('Número de compra no proporcionado');
-      return res.status(400).json({ error: 'El número de compra es obligatorio para filtrar.' });
+        console.log('Número de compra no proporcionado');
+        return res.status(400).json({ error: 'El número de compra es obligatorio para filtrar.' });
     }
-  
+
     const query = 'SELECT * FROM compras WHERE numero_compra = ?';
     pool.query(query, [numero_compra], (err, results) => {
-      if (err) {
-        console.error('Error al filtrar compras por número de compra:', err);
-        return res.status(500).json({ error: 'Error interno del servidor.' });
-      }
-  
-      console.log('Resultados encontrados:', results);
-      res.status(200).json(results);
+        if (err) {
+            console.error('Error al filtrar compras por número de compra:', err);
+            return res.status(500).json({ error: 'Error interno del servidor.' });
+        }
+
+        console.log('Resultados encontrados:', results);
+        res.status(200).json(results);
     });
-  });
-  
-
-
+});
 
 
 
