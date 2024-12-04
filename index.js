@@ -45,37 +45,12 @@ const pool = mysql.createPool({
 // Verificar conexión inicial
 pool.getConnection((err, connection) => {
     if (err) {
-        console.error('Error obteniendo la conexión:', err);
-        return res.status(500).json({ error: 'Error al conectar con la base de datos.' });
+        console.error('Error conectando al pool de base de datos:', err.message);
+        return;
     }
-
-    const query = `
-        INSERT INTO compras (nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `;
-
-    const registrosProcesados = [];
-    registros.forEach((registro, index) => {
-        connection.query(
-            query,
-            [registro.nombre, registro.unidad, registro.cantidad_pedida, registro.pendiente, registro.fecha_envio, registro.numero_compra],
-            (err, results) => {
-                if (err) {
-                    console.error('Error al insertar registro:', registro, err);
-                } else {
-                    registrosProcesados.push(results);
-                }
-
-                // Liberar la conexión después de procesar todos los registros
-                if (index === registros.length - 1) {
-                    connection.release();
-                    res.status(200).json({ message: 'Registros procesados correctamente.', registrosProcesados });
-                }
-            }
-        );
-    });
+    console.log('Conectado a la base de datos');
+    connection.release(); // Liberar la conexión inicial
 });
-
 
 // Endpoint de ejemplo: Login
 app.post('/api/login', async (req, res) => {
@@ -126,71 +101,53 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-
-
-//  inserta registro
 app.post('/api/compras', (req, res) => {
-    console.log('Inicio de /api/compras'); // Log de inicio para depuración
-    console.log('Cuerpo recibido:', req.body); // Log para verificar el contenido recibido
-
     const { registros } = req.body;
 
-    // Validar que `registros` exista y sea un arreglo
     if (!registros || !Array.isArray(registros)) {
-        console.error('Registros inválidos o ausentes:', req.body);
         return res.status(400).json({ error: 'El formato del cuerpo de la solicitud es inválido.' });
     }
 
-    console.log('Cantidad de registros recibidos:', registros.length);
-
-    // Filtrar y preparar los datos para la consulta masiva
-    const valores = registros
-        .filter((registro) => registro.nombre && registro.unidad && registro.cantidad_pedida != null && registro.pendiente != null && registro.fecha_envio)
-        .map(({ nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra }) => [
-            nombre,
-            unidad,
-            cantidad_pedida,
-            pendiente,
-            fecha_envio,
-            numero_compra || null, // Usar NULL si no hay número de compra
-        ]);
-
-    if (valores.length === 0) {
-        console.error('No hay registros válidos para insertar.');
-        return res.status(400).json({ error: 'No hay registros válidos para insertar.' });
-    }
-
-    console.log('Cantidad de registros válidos para insertar:', valores.length);
-
-    // Consulta de inserción masiva
+    // Construcción de la consulta para insertar múltiples registros
     const query = `
         INSERT INTO compras (nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra)
-        VALUES ?
+        VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    // Ejecutar la consulta masiva
-    pool.query(query, [valores], (err, results) => {
-        if (err) {
-            console.error('Error en la inserción masiva:', err);
-            return res.status(500).json({ error: 'Hubo un error al guardar los registros.' });
+    // Procesar cada registro
+    const promises = registros.map((registro) => {
+        const { nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra } = registro;
+
+        // Validar que los campos requeridos estén presentes
+        if (!nombre || !unidad || cantidad_pedida == null || pendiente == null || !fecha_envio) {
+            return Promise.reject(new Error('Faltan campos requeridos en uno o más registros.'));
         }
 
-        console.log('Inserción exitosa. Filas afectadas:', results.affectedRows); // Log de éxito
-        res.status(200).json({
-            message: 'Registros guardados exitosamente.',
-            insertados: results.affectedRows,
+        return new Promise((resolve, reject) => {
+            pool.query(
+                query,
+                [nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra],
+                (err, results) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(results);
+                    }
+                }
+            );
         });
     });
+
+    // Ejecutar todas las promesas
+    Promise.all(promises)
+        .then(() => {
+            res.status(200).json({ message: 'Registros guardados exitosamente.' });
+        })
+        .catch((err) => {
+            console.error('Error al guardar los registros:', err);
+            res.status(500).json({ error: 'Hubo un error al guardar los registros.' });
+        });
 });
-
-
-
-
-
-
-
-
-
 
 
 // obetener loas compras sin numero
