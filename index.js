@@ -125,6 +125,9 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+
+
+
 //  inserta registro
 app.post('/api/compras', (req, res) => {
     console.log('Inicio de /api/compras'); // Log de inicio del endpoint
@@ -179,6 +182,11 @@ app.post('/api/compras', (req, res) => {
         });
     });
 });
+
+
+
+
+
 
 
 
