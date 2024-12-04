@@ -100,7 +100,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-
+//  inserta registro
 app.post('/api/compras', (req, res) => {
     const { registros } = req.body;
 
@@ -108,19 +108,18 @@ app.post('/api/compras', (req, res) => {
         return res.status(400).json({ error: 'El formato del cuerpo de la solicitud es inválido.' });
     }
 
-    // Construcción de la consulta para insertar múltiples registros
     const query = `
         INSERT INTO compras (nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra)
         VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    // Procesar cada registro
+    // Procesar cada registro con validación
     const promises = registros.map((registro) => {
         const { nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra } = registro;
 
-        // Validar que los campos requeridos estén presentes
         if (!nombre || !unidad || cantidad_pedida == null || pendiente == null || !fecha_envio) {
-            return Promise.reject(new Error('Faltan campos requeridos en uno o más registros.'));
+            console.warn('Registro inválido omitido:', registro);
+            return Promise.resolve(null); // Ignorar registros inválidos
         }
 
         return new Promise((resolve, reject) => {
@@ -138,16 +137,29 @@ app.post('/api/compras', (req, res) => {
         });
     });
 
-    // Ejecutar todas las promesas
-    Promise.all(promises)
-        .then(() => {
-            res.status(200).json({ message: 'Registros guardados exitosamente.' });
+    // Ejecutar las promesas y manejar errores
+    Promise.allSettled(promises)
+        .then((results) => {
+            const errores = results.filter((result) => result.status === 'rejected');
+            const exitos = results.filter((result) => result.status === 'fulfilled');
+
+            if (errores.length > 0) {
+                console.error('Errores en algunos registros:', errores);
+                return res.status(207).json({
+                    message: 'Algunos registros no pudieron ser guardados.',
+                    exitos: exitos.length,
+                    errores: errores.length,
+                });
+            }
+
+            res.status(200).json({ message: 'Registros guardados exitosamente.', exitos: exitos.length });
         })
         .catch((err) => {
-            console.error('Error al guardar los registros:', err);
+            console.error('Error al procesar las promesas:', err);
             res.status(500).json({ error: 'Hubo un error al guardar los registros.' });
         });
 });
+
 
 
 // obetener loas compras sin numero
