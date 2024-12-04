@@ -42,6 +42,7 @@ const pool = mysql.createPool({
     queueLimit: 0, // Sin límite en la cola
 });
 
+
 // Verificar conexión inicial
 pool.getConnection((err, connection) => {
     if (err) {
@@ -177,25 +178,55 @@ app.get('/api/compras/sin-numero', (req, res) => {
 });
 
 
-// actualizar el numero
-app.put('/api/compras/actualizar-numero', (req, res) => {
-    const { id, numero_compra } = req.body;
 
-    if (!id || !numero_compra) {
-        return res.status(400).json({ error: 'ID y número de compra son obligatorios.' });
+
+
+// actualizar el numero
+app.put('/api/compras/actualizar-numeros', (req, res) => {
+    const { registros } = req.body;
+
+    if (!registros || !Array.isArray(registros) || registros.length === 0) {
+        return res.status(400).json({ error: 'Debe proporcionar un arreglo de registros con id y numero_compra.' });
     }
 
-    const query = `UPDATE compras SET numero_compra = ? WHERE id = ?`;
+    // Validar que cada registro tenga los campos requeridos
+    const valores = registros
+        .filter((registro) => registro.id && registro.numero_compra)
+        .map((registro) => [registro.numero_compra, registro.id]);
 
-    pool.query(query, [numero_compra, id], (err, results) => {
+    if (valores.length === 0) {
+        return res.status(400).json({ error: 'No hay registros válidos para actualizar.' });
+    }
+
+    console.log('Registros a actualizar:', valores);
+
+    // Construir la consulta masiva
+    const query = `
+        INSERT INTO compras (id, numero_compra)
+        VALUES ?
+        ON DUPLICATE KEY UPDATE numero_compra = VALUES(numero_compra)
+    `;
+
+    // Ejecutar la consulta masiva
+    pool.query(query, [valores], (err, results) => {
         if (err) {
-            console.error('Error al actualizar el número de compra:', err);
-            return res.status(500).json({ error: 'Error al actualizar el número de compra.' });
+            console.error('Error en la actualización masiva:', err);
+            return res.status(500).json({ error: 'Hubo un error al actualizar los números de compra.' });
         }
 
-        res.status(200).json({ message: 'Número de compra actualizado exitosamente.' });
+        console.log('Actualización exitosa. Filas afectadas:', results.affectedRows);
+        res.status(200).json({
+            message: 'Números de compra actualizados exitosamente.',
+            actualizados: results.affectedRows,
+        });
     });
 });
+
+
+
+
+
+
 
 // filtra por fecha
 
