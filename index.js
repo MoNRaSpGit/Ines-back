@@ -130,20 +130,20 @@ app.post('/api/login', async (req, res) => {
 
 //  inserta registro
 app.post('/api/compras', (req, res) => {
-    console.log('Inicio de /api/compras'); // Log de inicio del endpoint
-    console.log('Cuerpo de la solicitud:', req.body); // Log para depurar la solicitud
+    console.log('Inicio de /api/compras'); // Log de inicio para depuración
+    console.log('Cuerpo recibido:', req.body); // Log para verificar el contenido recibido
 
     const { registros } = req.body;
 
-    // Validar que se hayan recibido registros en un formato válido
+    // Validar que `registros` exista y sea un arreglo
     if (!registros || !Array.isArray(registros)) {
-        console.error('Registros inválidos o no enviados:', req.body);
+        console.error('Registros inválidos o ausentes:', req.body);
         return res.status(400).json({ error: 'El formato del cuerpo de la solicitud es inválido.' });
     }
 
-    console.log('Cantidad de registros recibidos:', registros.length); // Log para depurar cantidad de registros
+    console.log('Cantidad de registros recibidos:', registros.length);
 
-    // Filtrar y preparar los valores válidos para la consulta masiva
+    // Filtrar y preparar los datos para la consulta masiva
     const valores = registros
         .filter((registro) => registro.nombre && registro.unidad && registro.cantidad_pedida != null && registro.pendiente != null && registro.fecha_envio)
         .map(({ nombre, unidad, cantidad_pedida, pendiente, fecha_envio, numero_compra }) => [
@@ -152,15 +152,15 @@ app.post('/api/compras', (req, res) => {
             cantidad_pedida,
             pendiente,
             fecha_envio,
-            numero_compra || null, // Si no hay número de compra, usar NULL
+            numero_compra || null, // Usar NULL si no hay número de compra
         ]);
 
     if (valores.length === 0) {
-        console.error('No hay registros válidos después del filtrado.');
+        console.error('No hay registros válidos para insertar.');
         return res.status(400).json({ error: 'No hay registros válidos para insertar.' });
     }
 
-    console.log('Cantidad de registros válidos para insertar:', valores.length); // Log para depurar registros válidos
+    console.log('Cantidad de registros válidos para insertar:', valores.length);
 
     // Consulta de inserción masiva
     const query = `
@@ -171,7 +171,7 @@ app.post('/api/compras', (req, res) => {
     // Ejecutar la consulta masiva
     pool.query(query, [valores], (err, results) => {
         if (err) {
-            console.error('Error al realizar la inserción masiva:', err);
+            console.error('Error en la inserción masiva:', err);
             return res.status(500).json({ error: 'Hubo un error al guardar los registros.' });
         }
 
@@ -182,6 +182,7 @@ app.post('/api/compras', (req, res) => {
         });
     });
 });
+
 
 
 
