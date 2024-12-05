@@ -218,7 +218,7 @@ app.put('/api/compras/actualizar-numeros', (req, res) => {
 
         console.log('Actualización exitosa. Filas afectadas:', results.affectedRows);
         res.status(200).json({
-            message: 'Números de compra actualizados exitosamente.',
+            message: 'Números de compra actualizados exitosamenste.',
             actualizados: results.affectedRows,
         });
     });
