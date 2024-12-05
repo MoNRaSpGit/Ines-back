@@ -185,6 +185,7 @@ app.get('/api/compras/sin-numero', (req, res) => {
 
 // actualizar el numero
 app.put('/api/compras/actualizar-numeros', (req, res) => {
+    console.log('Cuerpo recibido:', req.body); // Log para verificar los datos
     const { registros } = req.body;
 
     if (!registros || !Array.isArray(registros) || registros.length === 0) {
