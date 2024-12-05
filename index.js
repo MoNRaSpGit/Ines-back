@@ -193,25 +193,32 @@ app.put('/api/compras/actualizar-numeros', (req, res) => {
     }
 
     // Validar que cada registro tenga los campos requeridos
-    const valores = registros
-        .filter((registro) => registro.id && registro.numero_compra)
-        .map((registro) => [registro.numero_compra, registro.id]);
+    const registrosValidos = registros.filter(
+        (registro) => registro.id && registro.numero_compra
+    );
 
-    if (valores.length === 0) {
+    if (registrosValidos.length === 0) {
         return res.status(400).json({ error: 'No hay registros válidos para actualizar.' });
     }
 
-    console.log('Registros a actualizar:', valores);
+    console.log('Registros válidos a actualizar:', registrosValidos);
 
-    // Construir la consulta masiva
-    const query = `
-        INSERT INTO compras (id, numero_compra)
-        VALUES ?
-        ON DUPLICATE KEY UPDATE numero_compra = VALUES(numero_compra)
+    // Construir la consulta UPDATE masiva usando CASE
+    let query = `
+        UPDATE compras
+        SET numero_compra = CASE
     `;
+    const ids = [];
+    registrosValidos.forEach((registro) => {
+        query += ` WHEN id = ${registro.id} THEN '${registro.numero_compra}'`;
+        ids.push(registro.id);
+    });
+    query += ` END WHERE id IN (${ids.join(', ')});`;
 
-    // Ejecutar la consulta masiva
-    pool.query(query, [valores], (err, results) => {
+    console.log('Consulta generada:', query); // Log para depuración
+
+    // Ejecutar la consulta
+    pool.query(query, (err, results) => {
         if (err) {
             console.error('Error en la actualización masiva:', err);
             return res.status(500).json({ error: 'Hubo un error al actualizar los números de compra.' });
@@ -219,11 +226,12 @@ app.put('/api/compras/actualizar-numeros', (req, res) => {
 
         console.log('Actualización exitosa. Filas afectadas:', results.affectedRows);
         res.status(200).json({
-            message: 'Números de compra actualizados exitosamenste.',
+            message: 'Números de compra actualizados exitosamente.',
             actualizados: results.affectedRows,
         });
     });
 });
+
 
 
 
