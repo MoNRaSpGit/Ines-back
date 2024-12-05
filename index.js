@@ -156,13 +156,6 @@ app.post('/api/compras', (req, res) => {
 
 
 
-
-
-
-
-
-
-
 // obetener loas compras sin numero
 app.get('/api/compras/sin-numero', (req, res) => {
     const query = `SELECT * FROM compras WHERE numero_compra IS NULL`;
@@ -176,6 +169,15 @@ app.get('/api/compras/sin-numero', (req, res) => {
         res.status(200).json(results);
     });
 });
+
+
+
+
+
+
+
+
+
 
 
 
@@ -221,6 +223,13 @@ app.put('/api/compras/actualizar-numeros', (req, res) => {
         });
     });
 });
+
+
+
+
+
+
+
 
 
 
